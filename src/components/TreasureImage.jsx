@@ -1,6 +1,8 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+// eslint-disable-next-line react/prop-types
 const TreasureImage = ({ treasureId }) => {
   const [treasure, setTreasure] = useState(null);
   const [error, setError] = useState(null);
