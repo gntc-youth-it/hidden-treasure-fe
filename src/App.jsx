@@ -7,16 +7,16 @@ import {
   useParams
 } from "react-router-dom";
 import TreasureImage from "./components/TreasureImage";
+import MainPage from "./components/MainPage.jsx";
 
 function App() {
   return (
       <Router>
         <Routes>
           {/* 기본 페이지 */}
-          <Route path="/" element={<h1>Welcome to the Treasure Viewer!</h1>} />
-
+          <Route path="/" element={<MainPage />} />
           {/* /:treasureId 경로에서 TreasureImage 컴포넌트를 렌더링 */}
-          <Route path="/:treasureId" element={<TreasureRoute />} />
+          <Route path="/treasure/:treasureId" element={<TreasureRoute />} />
         </Routes>
       </Router>
   );
