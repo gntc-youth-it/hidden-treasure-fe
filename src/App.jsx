@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import TreasureImage from "./components/TreasureImage";
 import MainPage from "./components/MainPage.jsx";
+import TeamForm from "./components/TeamForm.jsx";
 
 function App() {
   return (
@@ -15,7 +16,7 @@ function App() {
         <Routes>
           {/* 기본 페이지 */}
           <Route path="/" element={<MainPage />} />
-          {/* /:treasureId 경로에서 TreasureImage 컴포넌트를 렌더링 */}
+            <Route path="/form" element={<TeamForm />} />
           <Route path="/treasure/:treasureId" element={<TreasureRoute />} />
         </Routes>
       </Router>
