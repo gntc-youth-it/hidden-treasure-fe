@@ -7,86 +7,127 @@ const QRScanPage = () => {
   const location = useLocation();
   const [isVisible, setIsVisible] = useState(false);
   const [error, setError] = useState('');
+  const [cameras, setCameras] = useState([]);
+  const [currentCamera, setCurrentCamera] = useState(null);
   const teamNumber = location.state?.teamNumber;
   const [isScanning, setIsScanning] = useState(false);
+  const [html5QrCode, setHtml5QrCode] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 500);
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    let html5QrCode;
+  const startScanner = async (cameraId) => {
+    try {
+      if (html5QrCode && html5QrCode.isScanning) {
+        await html5QrCode.stop();
+      }
 
-    const startScanner = async () => {
-      try {
-        html5QrCode = new Html5Qrcode("qr-reader");
-        const cameras = await Html5Qrcode.getCameras();
+      await html5QrCode.start(
+          cameraId,
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+          },
+          async (decodedText) => {
+            try {
+              await html5QrCode.stop();
+              const response = await fetch('YOUR_API_ENDPOINT', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  teamNumber: teamNumber,
+                  uuid: decodedText
+                })
+              });
 
-        if (cameras && cameras.length) {
-          setIsScanning(true);
-          const camera = cameras[0];
-          await html5QrCode.start(
-              camera.id,
-              {
-                fps: 10,
-                qrbox: { width: 250, height: 250 }
-              },
-              async (decodedText) => {
-                // QR 코드 인식 성공
-                try {
-                  await html5QrCode.stop();
-                  const response = await fetch('YOUR_API_ENDPOINT', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      teamNumber: teamNumber,
-                      uuid: decodedText
-                    })
-                  });
-
-                  if (!response.ok) {
-                    throw new Error('API 요청 실패');
-                  }
-
-                  const data = await response.json();
-                  navigate('/next-page', { state: { data } });
-
-                } catch (err) {
-                  setError('QR 코드 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
-                  startScanner(); // 스캐너 재시작
-                }
-              },
-              (errorMessage) => {
-                // QR 스캔 중 에러는 무시 (계속 스캔 시도)
+              if (!response.ok) {
+                throw new Error('API 요청 실패');
               }
+
+              const data = await response.json();
+              navigate('/next-page', { state: { data } });
+
+            } catch (err) {
+              setError('QR 코드 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+              startScanner(cameraId);
+            }
+          },
+          (errorMessage) => {
+            // QR 스캔 중 에러는 무시 (계속 스캔 시도)
+          }
+      );
+      setIsScanning(true);
+      setCurrentCamera(cameraId);
+    } catch (err) {
+      setError('카메라 시작에 실패했습니다.');
+      setIsScanning(false);
+    }
+  };
+
+  useEffect(() => {
+    const initializeScanner = async () => {
+      try {
+        const qrCode = new Html5Qrcode("qr-reader");
+        setHtml5QrCode(qrCode);
+
+        const devices = await Html5Qrcode.getCameras();
+        setCameras(devices);
+
+        if (devices && devices.length) {
+          // 후면 카메라 찾기
+          const rearCamera = devices.find(camera =>
+              camera.label.toLowerCase().includes('back') ||
+              camera.label.toLowerCase().includes('rear') ||
+              camera.label.toLowerCase().includes('환경') ||
+              camera.label.toLowerCase().includes('후면')
           );
+
+          // 후면 카메라가 있으면 사용, 없으면 첫 번째 카메라 사용
+          const preferredCamera = rearCamera || devices[0];
+          await startScanner(preferredCamera.id);
         } else {
-          setError('카메라를 찾을 수 없습니다.');
+          setError('사용 가능한 카메라가 없습니다.');
         }
       } catch (err) {
-        setError('카메라 접근에 실패했습니다. 카메라 권한을 확인해주세요.');
+        setError('카메라 초기화에 실패했습니다.');
       }
     };
 
-    startScanner();
+    initializeScanner();
 
-    // Cleanup
     return () => {
       if (html5QrCode && html5QrCode.isScanning) {
         html5QrCode.stop().catch(console.error);
       }
     };
-  }, [teamNumber, navigate]);
+  }, []);
+
+  const handleCameraSwitch = async () => {
+    if (!cameras || cameras.length < 2) return;
+
+    const currentIndex = cameras.findIndex(camera => camera.id === currentCamera);
+    const nextIndex = (currentIndex + 1) % cameras.length;
+    await startScanner(cameras[nextIndex].id);
+  };
 
   return (
       <div className="fixed inset-0" style={{ backgroundColor: '#030511' }}>
         <div className="mx-auto h-full max-w-md flex flex-col relative" style={{ maxWidth: '430px' }}>
           {/* 헤더 */}
-          <header className="w-full py-6 px-6">
+          <header className="w-full py-6 px-6 flex justify-between items-center">
             <h2 className="text-white text-xl font-bold">GNTC-YOUTH-IT</h2>
+            {cameras.length > 1 && (
+                <button
+                    onClick={handleCameraSwitch}
+                    className="bg-gray-800 text-white px-4 py-2 rounded-full text-sm flex items-center"
+                >
+                  📷 카메라 전환
+                </button>
+            )}
           </header>
 
           {/* 메인 컨텐츠 */}
@@ -131,20 +172,20 @@ const QRScanPage = () => {
         </div>
 
         <style jsx>{`
-                #qr-reader {
-                    border: none !important;
-                    width: 100% !important;
-                    height: 100% !important;
-                }
-                #qr-reader video {
-                    width: 100% !important;
-                    height: 100% !important;
-                    object-fit: cover !important;
-                }
-                #qr-reader__dashboard {
-                    display: none !important;
-                }
-            `}</style>
+          #qr-reader {
+            border: none !important;
+            width: 100% !important;
+            height: 100% !important;
+          }
+          #qr-reader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+          }
+          #qr-reader__dashboard {
+            display: none !important;
+          }
+        `}</style>
       </div>
   );
 };
