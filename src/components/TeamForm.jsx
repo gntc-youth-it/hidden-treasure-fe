@@ -36,7 +36,7 @@ const TeamForm = () => {
             <div className="mx-auto h-full max-w-md flex flex-col relative" style={{ maxWidth: '430px' }}>
                 {/* 헤더 */}
                 <header className="w-full py-6 px-6">
-                    <h2 className="text-white text-xl font-bold">DEPROMEET</h2>
+                    <h2 className="text-white text-xl font-bold">GNTC-YOUTH-IT</h2>
                 </header>
 
                 {/* 메인 컨텐츠 */}

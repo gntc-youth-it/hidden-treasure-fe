@@ -9,6 +9,7 @@ import {
 import TreasureImage from "./components/TreasureImage";
 import MainPage from "./components/MainPage.jsx";
 import TeamForm from "./components/TeamForm.jsx";
+import QRScanPage from "./components/QRScanPage.jsx";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           {/* 기본 페이지 */}
           <Route path="/" element={<MainPage />} />
             <Route path="/form" element={<TeamForm />} />
+            <Route path="/qr-scan" element={<QRScanPage />} />
           <Route path="/treasure/:treasureId" element={<TreasureRoute />} />
         </Routes>
       </Router>
