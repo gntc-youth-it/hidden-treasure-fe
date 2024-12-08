@@ -69,37 +69,64 @@ const QRScanPage = () => {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const initializeScanner = async () => {
       try {
+        // 먼저 HTML 요소가 있는지 확인
+        if (!document.getElementById("qr-reader")) {
+          if (mounted) setError('스캐너를 초기화할 수 없습니다.');
+          return;
+        }
+
+        // QR 스캐너 인스턴스 생성
         const qrCode = new Html5Qrcode("qr-reader");
-        setHtml5QrCode(qrCode);
+        if (mounted) setHtml5QrCode(qrCode);
 
+        // 카메라 목록 가져오기 전에 약간의 지연
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // 카메라 목록 가져오기
         const devices = await Html5Qrcode.getCameras();
-        setCameras(devices);
 
-        if (devices && devices.length) {
-          // 후면 카메라 찾기
-          const rearCamera = devices.find(camera =>
-              camera.label.toLowerCase().includes('back') ||
-              camera.label.toLowerCase().includes('rear') ||
-              camera.label.toLowerCase().includes('환경') ||
-              camera.label.toLowerCase().includes('후면')
-          );
+        if (mounted) {
+          setCameras(devices);
 
-          // 후면 카메라가 있으면 사용, 없으면 첫 번째 카메라 사용
-          const preferredCamera = rearCamera || devices[0];
-          await startScanner(preferredCamera.id);
-        } else {
-          setError('사용 가능한 카메라가 없습니다.');
+          if (devices && devices.length) {
+            // 후면 카메라 찾기 (label이 비어있을 수 있으므로 안전하게 처리)
+            const rearCamera = devices.find(camera => {
+              const label = (camera.label || '').toLowerCase();
+              return label.includes('back') ||
+                  label.includes('rear') ||
+                  label.includes('환경') ||
+                  label.includes('후면');
+            });
+
+            // 일단 첫 번째 카메라로 시작
+            const initialCamera = devices[0];
+            await startScanner(initialCamera.id);
+
+            // 후면 카메라가 있고, 첫 번째 카메라와 다르다면 후면 카메라로 전환
+            if (rearCamera && rearCamera.id !== initialCamera.id) {
+              await startScanner(rearCamera.id);
+            }
+          } else {
+            setError('사용 가능한 카메라가 없습니다.');
+          }
         }
       } catch (err) {
-        setError('카메라 초기화에 실패했습니다.');
+        console.error('Camera initialization error:', err);
+        if (mounted) {
+          setError('카메라 권한을 허용해주세요.');
+        }
       }
     };
 
-    initializeScanner();
+    // 약간의 지연 후 초기화 시작
+    setTimeout(initializeScanner, 500);
 
     return () => {
+      mounted = false;
       if (html5QrCode && html5QrCode.isScanning) {
         html5QrCode.stop().catch(console.error);
       }
