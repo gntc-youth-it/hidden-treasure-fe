@@ -237,12 +237,7 @@ const QRScanPage = () => {
                   </div>
               )}
 
-              {/* 디버그 정보 (개발 중에만 표시) */}
-              <div className="mt-4 p-4 bg-gray-800 rounded-lg">
-                            <pre className="text-xs text-gray-400 whitespace-pre-wrap">
-                                {debugInfo}
-                            </pre>
-              </div>
+              {/* 디버그 정보 제거 */}
             </div>
           </main>
 
