@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 
@@ -16,24 +16,34 @@ const QRScanPage = () => {
   const [cameras, setCameras] = useState([]);
   const [currentCamera, setCurrentCamera] = useState(null);
   const [html5QrCode, setHtml5QrCode] = useState(null);
-  const [lastRequestTime, setLastRequestTime] = useState(0);
+  const lastRequestTimeRef = useRef(0);
+  const toastTimerRef = useRef(null);
 
   // UI 헬퍼 함수
-  const showToastMessage = (message, duration = 3000) => {
+  const showToastMessage = useCallback((message, duration = 3000) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+
     setToastMessage(message);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), duration);
-  };
+
+    toastTimerRef.current = setTimeout(() => {
+      setShowToast(false);
+      toastTimerRef.current = null;
+    }, duration);
+  }, []);
 
   // QR 스캔 처리 함수
-  const handleQrCodeScan = async (decodedText, qrCodeInstance) => {
+  const handleQrCodeScanRef = useRef(async (decodedText) => {
     try {
       const now = Date.now();
-      if (now - lastRequestTime < 5000) {
-        console.log('스로틀링: 이전 요청 후', (now - lastRequestTime) / 1000, '초 경과');
-        return; // 5초 쿨다운
+      if (now - lastRequestTimeRef.current < 5000) {
+        console.log('Throttled: Too soon after last request');
+        return;
       }
-      setLastRequestTime(now);
+
+      lastRequestTimeRef.current = now;
 
       const response = await fetch('https://api.bhohwa.click/treasure/find', {
         method: 'POST',
@@ -49,14 +59,14 @@ const QRScanPage = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        showToastMessage(data.message, true);
+        showToastMessage(data.message);
         return;
       }
       showToastMessage('보물을 찾았습니다! 🎉');
     } catch (err) {
       showToastMessage('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
     }
-  };
+  }).current;
 
   // 카메라 관련 함수
   const findRearCamera = (devices) => {
@@ -70,7 +80,7 @@ const QRScanPage = () => {
     return rearCamera || devices[devices.length - 1];
   };
 
-  const handleCameraSwitch = async () => {
+  const handleCameraSwitch = useCallback(async () => {
     if (!cameras?.length || cameras.length < 2) return;
 
     const currentIndex = cameras.findIndex(camera => camera.id === currentCamera);
@@ -88,15 +98,23 @@ const QRScanPage = () => {
             fps: 10,
             qrbox: { width: 250, height: 250 }
           },
-          handleQrCodeScan,
-          () => {} // 스캔 중 에러는 무시
+          handleQrCodeScanRef,  // useRef로 변경된 함수 사용
+          () => {}
       );
 
       setCurrentCamera(nextCamera.id);
     } catch (err) {
       setError(`카메라 전환 실패: ${err.message}`);
     }
-  };
+  }, [cameras, currentCamera, html5QrCode]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   // 초기화 효과
   useEffect(() => {
@@ -125,8 +143,6 @@ const QRScanPage = () => {
           setCameras(devices);
           const rearCamera = findRearCamera(devices);
 
-          await new Promise(resolve => setTimeout(resolve, 500));
-
           if (mounted) {
             await qrCodeInstance.start(
                 rearCamera.id,
@@ -134,8 +150,8 @@ const QRScanPage = () => {
                   fps: 10,
                   qrbox: { width: 250, height: 250 }
                 },
-                handleQrCodeScan,
-                () => {} // 스캔 중 에러는 무시
+                handleQrCodeScanRef,  // useRef로 변경된 함수 사용
+                () => {}
             );
             setCurrentCamera(rearCamera.id);
             setError('');
@@ -155,9 +171,12 @@ const QRScanPage = () => {
       if (qrCodeInstance?.isScanning) {
         qrCodeInstance.stop().catch(console.error);
       }
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
       setShowToast(false);
     };
-  }, []);
+  }, []); // 빈 의존성 배열
 
   // UI 렌더링
   return (
