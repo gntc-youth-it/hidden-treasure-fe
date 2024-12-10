@@ -43,6 +43,8 @@ const QRScanPage = () => {
         })
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
         showToastMessage(data.message, true);
         setLastRequestTime(now);
