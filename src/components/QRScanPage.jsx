@@ -30,6 +30,7 @@ const QRScanPage = () => {
     try {
       const now = Date.now();
       if (now - lastRequestTime < 5000) return; // 5초 쿨다운
+      setLastRequestTime(now);
 
       const response = await fetch('https://api.bhohwa.click/treasure/find', {
         method: 'POST',
@@ -42,15 +43,17 @@ const QRScanPage = () => {
         })
       });
 
-      if (!response.ok) throw new Error('API 요청 실패');
+      if (!response.ok) {
+        showToastMessage(data.message, true);
+        setLastRequestTime(now);
+        return;
+      }
 
-      const data = await response.json();
       showToastMessage('보물을 찾았습니다! 🎉');
-      setLastRequestTime(now);
 
     } catch (err) {
       setLastRequestTime(Date.now());
-      showToastMessage('QR 코드 처리 중 오류가 발생했습니다.');
+      showToastMessage('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
     }
   };
 
