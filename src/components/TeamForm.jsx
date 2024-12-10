@@ -79,13 +79,6 @@ const TeamForm = () => {
                         </form>
                     </div>
                 </main>
-
-                {/* 챗 버튼 */}
-                <div className="absolute bottom-6 right-6">
-                    <button className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center">
-                        <span className="text-2xl">💭</span>
-                    </button>
-                </div>
             </div>
         </div>
     );

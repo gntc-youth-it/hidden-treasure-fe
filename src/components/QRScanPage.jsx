@@ -19,6 +19,11 @@ const QRScanPage = () => {
   const lastRequestTimeRef = useRef(0);
   const toastTimerRef = useRef(null);
 
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [stats, setStats] = useState(null);
+  const statsTimerRef = useRef(null);
+  const [noTreasure, setNoTreasure] = useState(false);
+
   // UI 헬퍼 함수
   const showToastMessage = useCallback((message, duration = 3000) => {
     if (toastTimerRef.current) {
@@ -108,6 +113,33 @@ const QRScanPage = () => {
     }
   }, [cameras, currentCamera, html5QrCode]);
 
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`https://api.bhohwa.click/rank/${teamNumber}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.code === 8001) {
+          setNoTreasure(true);
+          setStats(null);
+        }
+        return;
+      }
+      setNoTreasure(false);
+      setStats(data);
+    } catch (err) {
+      showToastMessage('순위 정보를 불러오는데 실패했습니다.');
+    }
+  };
+
+  const handleStatsClick = () => {
+    if (!isStatsOpen) {
+      fetchStats();
+    }
+    setIsStatsOpen(!isStatsOpen);
+  };
+
+
   useEffect(() => {
     return () => {
       if (toastTimerRef.current) {
@@ -178,10 +210,32 @@ const QRScanPage = () => {
     };
   }, []); // 빈 의존성 배열
 
+  useEffect(() => {
+    if (isStatsOpen) {
+      // 이전 타이머가 있다면 제거
+      if (statsTimerRef.current) {
+        clearTimeout(statsTimerRef.current);
+      }
+
+      // 5초 후 자동 닫힘
+      statsTimerRef.current = setTimeout(() => {
+        setIsStatsOpen(false);
+        statsTimerRef.current = null;
+      }, 5000);
+    }
+
+    // 컴포넌트 언마운트 또는 상태 변경 시 타이머 정리
+    return () => {
+      if (statsTimerRef.current) {
+        clearTimeout(statsTimerRef.current);
+      }
+    };
+  }, [isStatsOpen]);
+
   // UI 렌더링
   return (
       <div className="fixed inset-0" style={{ backgroundColor: '#030511' }}>
-        <div className="mx-auto h-full max-w-md flex flex-col relative" style={{ maxWidth: '430px' }}>
+        <div className="mx-auto h-full max-w-md flex flex-col relative" style={{maxWidth: '430px'}}>
           <header className="w-full py-6 px-6 flex justify-between items-center">
             <h2 className="text-white text-xl font-bold">GNTC-YOUTH-IT</h2>
             {cameras.length > 1 && (
@@ -204,15 +258,16 @@ const QRScanPage = () => {
               </div>
 
               <div className="relative w-full aspect-square rounded-lg overflow-hidden mb-8 bg-black">
-                <div id="qr-reader" className="w-full h-full" />
+                <div id="qr-reader" className="w-full h-full"/>
                 <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute inset-8 border-2 border-white/30" />
+                  <div className="absolute inset-8 border-2 border-white/30"/>
                 </div>
               </div>
 
               {showToast && (
                   <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
-                    <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 opacity-90">
+                    <div
+                        className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 opacity-90">
                       {toastMessage}
                     </div>
                   </div>
@@ -227,9 +282,36 @@ const QRScanPage = () => {
           </main>
 
           <div className="absolute bottom-6 right-6">
-            <button className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center">
-              <span className="text-2xl">💭</span>
-            </button>
+            <div className={`flex items-center bg-gray-800 rounded-full transition-all duration-300 ${
+                isStatsOpen ? 'px-6' : 'px-3'
+            }`}>
+              {isStatsOpen && (
+                  <>
+                    {noTreasure ? (
+                        <div className="flex items-center mr-4">
+                          <span className="text-gray-400">아직까지 찾은 보물이 없습니다.</span>
+                        </div>
+                    ) : stats && (
+                        <div className="flex items-center mr-4 text-white">
+                          <div className="text-center mr-6">
+                            <div className="text-sm text-gray-400">찾은 보물</div>
+                            <div className="text-xl font-bold">{stats.treasureCount}개</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-sm text-gray-400">현재 순위</div>
+                            <div className="text-xl font-bold">{stats.rank}위</div>
+                          </div>
+                        </div>
+                    )}
+                  </>
+              )}
+              <button
+                  onClick={handleStatsClick}
+                  className="w-12 h-12 flex items-center justify-center"
+              >
+                <span className="text-2xl">{isStatsOpen ? '📊' : '💭'}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -239,11 +321,13 @@ const QRScanPage = () => {
             width: 100% !important;
             height: 100% !important;
           }
+
           #qr-reader video {
             width: 100% !important;
             height: 100% !important;
             object-fit: cover !important;
           }
+
           #qr-reader__dashboard {
             display: none !important;
           }
