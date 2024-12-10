@@ -1,87 +1,61 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 
 const QRScanPage = () => {
-  const navigate = useNavigate();
   const location = useLocation();
-  const [isVisible, setIsVisible] = useState(false);
-  const [error, setError] = useState('');
-  const [debugInfo, setDebugInfo] = useState('');
-  const [cameras, setCameras] = useState([]);
-  const [currentCamera, setCurrentCamera] = useState(null);
   const teamNumber = location.state?.teamNumber;
-  const [isScanning, setIsScanning] = useState(false);
-  const [html5QrCode, setHtml5QrCode] = useState(null);
+
+  // UI 상태
+  const [isVisible, setIsVisible] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [error, setError] = useState('');
+
+  // 카메라 상태
+  const [cameras, setCameras] = useState([]);
+  const [currentCamera, setCurrentCamera] = useState(null);
+  const [html5QrCode, setHtml5QrCode] = useState(null);
   const [lastRequestTime, setLastRequestTime] = useState(0);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  // UI 헬퍼 함수
+  const showToastMessage = (message, duration = 3000) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), duration);
+  };
 
-  const startScanner = async (cameraId) => {
+  // QR 스캔 처리 함수
+  const handleQrCodeScan = async (decodedText, qrCodeInstance) => {
     try {
-      setDebugInfo(prev => prev + `\n카메라 시작 시도: ${cameraId}`);
+      const now = Date.now();
+      if (now - lastRequestTime < 5000) return; // 5초 쿨다운
 
-      if (html5QrCode?.isScanning) {
-        setDebugInfo(prev => prev + '\n이전 스캔 중지');
-        await html5QrCode.stop();
-      }
+      const response = await fetch('https://api.bhohwa.click/treasure/find', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          teamNumber,
+          treasureCode: decodedText
+        })
+      });
 
-      await html5QrCode.start(
-          cameraId,
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 }
-          },
-          async (decodedText) => {
-            try {
-              await html5QrCode.stop();
-              const response = await fetch('YOUR_API_ENDPOINT', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  teamNumber: teamNumber,
-                  uuid: decodedText
-                })
-              });
+      if (!response.ok) throw new Error('API 요청 실패');
 
-              if (!response.ok) {
-                throw new Error('API 요청 실패');
-              }
+      const data = await response.json();
+      showToastMessage('보물을 찾았습니다! 🎉');
+      setLastRequestTime(now);
 
-              const data = await response.json();
-              navigate('/next-page', { state: { data } });
-
-            } catch (err) {
-              setError('QR 코드 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
-              startScanner(cameraId);
-            }
-          },
-          () => {} // 스캔 중 에러는 무시
-      );
-      setIsScanning(true);
-      setCurrentCamera(cameraId);
-      setDebugInfo(prev => prev + '\n카메라 시작 성공');
     } catch (err) {
-      setDebugInfo(prev => prev + `\n카메라 시작 실패: ${err.message}`);
-      setError(`카메라 시작에 실패했습니다: ${err.message}`);
-      setIsScanning(false);
+      setLastRequestTime(Date.now());
+      showToastMessage('QR 코드 처리 중 오류가 발생했습니다.');
     }
   };
 
+  // 카메라 관련 함수
   const findRearCamera = (devices) => {
-    setDebugInfo(prev => prev + '\n사용 가능한 카메라:');
-    devices.forEach(device => {
-      setDebugInfo(prev => prev + `\n - ${device.label} (${device.id})`);
-    });
-d
-    // 후면 카메라 찾기 시도
     const rearCamera = devices.find(camera => {
       const label = (camera.label || '').toLowerCase();
       return label.includes('back') ||
@@ -89,46 +63,64 @@ d
           label.includes('환경') ||
           label.includes('후면');
     });
-
-    if (rearCamera) {
-      setDebugInfo(prev => prev + `\n후면 카메라 발견: ${rearCamera.label}`);
-      return rearCamera;
-    }
-
-    // 레이블에서 찾지 못한 경우, 마지막 카메라를 후면 카메라로 가정
-    setDebugInfo(prev => prev + '\n후면 카메라를 찾지 못해 마지막 카메라 선택');
-    return devices[devices.length - 1];
+    return rearCamera || devices[devices.length - 1];
   };
 
+  const handleCameraSwitch = async () => {
+    if (!cameras?.length || cameras.length < 2) return;
+
+    const currentIndex = cameras.findIndex(camera => camera.id === currentCamera);
+    const nextIndex = (currentIndex + 1) % cameras.length;
+    const nextCamera = cameras[nextIndex];
+
+    try {
+      if (html5QrCode?.isScanning) {
+        await html5QrCode.stop();
+      }
+
+      await html5QrCode.start(
+          nextCamera.id,
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+          },
+          handleQrCodeScan,
+          () => {} // 스캔 중 에러는 무시
+      );
+
+      setCurrentCamera(nextCamera.id);
+    } catch (err) {
+      setError(`카메라 전환 실패: ${err.message}`);
+    }
+  };
+
+  // 초기화 효과
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 카메라 초기화 효과
   useEffect(() => {
     let mounted = true;
     let qrCodeInstance = null;
 
     const initializeScanner = async () => {
       try {
-        setDebugInfo('스캐너 초기화 시작');
-
         if (!document.getElementById("qr-reader")) {
           throw new Error('QR 스캐너 요소를 찾을 수 없습니다.');
         }
 
-        // QR 스캐너 인스턴스 생성
         qrCodeInstance = new Html5Qrcode("qr-reader");
-        setDebugInfo(prev => prev + '\nQR 스캐너 인스턴스 생성 성공');
+        if (mounted) setHtml5QrCode(qrCodeInstance);
+
+        const devices = await Html5Qrcode.getCameras();
+        if (!devices?.length) throw new Error('사용 가능한 카메라가 없습니다.');
 
         if (mounted) {
-          setHtml5QrCode(qrCodeInstance);
-        }
-
-        // 카메라 목록 가져오기
-        const devices = await Html5Qrcode.getCameras();
-        setDebugInfo(prev => prev + `\n감지된 카메라 수: ${devices.length}`);
-
-        if (mounted && devices && devices.length > 0) {
           setCameras(devices);
           const rearCamera = findRearCamera(devices);
 
-          // html5QrCode 상태가 업데이트될 때까지 잠시 대기
           await new Promise(resolve => setTimeout(resolve, 500));
 
           if (mounted) {
@@ -138,85 +130,32 @@ d
                   fps: 10,
                   qrbox: { width: 250, height: 250 }
                 },
-                async (decodedText) => {
-                  try {
-                    const now = Date.now();
-                    if (now - lastRequestTime < 5000) {  // 5000ms = 5초
-                      return; // 5초 이내의 요청은 무시
-                    }
-
-                    const response = await fetch('https://api.bhohwa.click/treasure/find', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        teamNumber: teamNumber,
-                        treasureCode: decodedText  // API 요청 형식에 맞게 변경
-                      })
-                    });
-
-                    if (!response.ok) {
-                      throw new Error('API 요청 실패');
-                    }
-
-                    const data = await response.json();
-                    setToastMessage('보물을 찾았습니다! 🎉');
-                    setShowToast(true);
-                    setLastRequestTime(now);
-
-                    setTimeout(() => {
-                      setShowToast(false);
-                    }, 3000);
-
-                  } catch (err) {
-                    setLastRequestTime(Date.now());
-                    setToastMessage('QR 코드 처리 중 오류가 발생했습니다.');
-                    setShowToast(true);
-                    setTimeout(() => {
-                      setShowToast(false);
-                    }, 3000);
-                  }
-                },
-                () => {}
+                handleQrCodeScan,
+                () => {} // 스캔 중 에러는 무시
             );
-            setIsScanning(true);
             setCurrentCamera(rearCamera.id);
-            setError(''); // 성공 시 에러 메시지 초기화
-            setDebugInfo(prev => prev + '\n카메라 시작 성공');
+            setError('');
           }
-        } else {
-          throw new Error('사용 가능한 카메라가 없습니다.');
         }
       } catch (err) {
-        console.error('Camera initialization error:', err);
         if (mounted) {
           setError(err.message);
-          setDebugInfo(prev => prev + `\n초기화 실패: ${err.message}`);
         }
       }
     };
 
-    // 약간의 지연 후 초기화 시작
     setTimeout(initializeScanner, 1000);
 
     return () => {
       mounted = false;
-      if (qrCodeInstance && qrCodeInstance.isScanning) {
+      if (qrCodeInstance?.isScanning) {
         qrCodeInstance.stop().catch(console.error);
       }
+      setShowToast(false);
     };
   }, []);
 
-  const handleCameraSwitch = async () => {
-    if (!cameras || cameras.length < 2) return;
-
-    const currentIndex = cameras.findIndex(camera => camera.id === currentCamera);
-    const nextIndex = (currentIndex + 1) % cameras.length;
-    setDebugInfo(prev => prev + `\n카메라 전환: ${currentIndex} -> ${nextIndex}`);
-    await startScanner(cameras[nextIndex].id);
-  };
-
+  // UI 렌더링
   return (
       <div className="fixed inset-0" style={{ backgroundColor: '#030511' }}>
         <div className="mx-auto h-full max-w-md flex flex-col relative" style={{ maxWidth: '430px' }}>
@@ -250,8 +189,7 @@ d
 
               {showToast && (
                   <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
-                    <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg
-                      transition-opacity duration-300 opacity-90">
+                    <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 opacity-90">
                       {toastMessage}
                     </div>
                   </div>
@@ -262,8 +200,6 @@ d
                     <p className="text-red-500 text-center">{error}</p>
                   </div>
               )}
-
-              {/* 디버그 정보 제거 */}
             </div>
           </main>
 
