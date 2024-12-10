@@ -220,8 +220,8 @@ const QRScanPage = () => {
                 isVisible ? 'opacity-100' : 'opacity-0'
             }`}>
               <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-white mb-2">QR 코드 스캔</h1>
-                <p className="text-lg text-gray-400">{teamNumber}조의 QR 코드를 스캔해주세요</p>
+                <h1 className="text-3xl font-bold text-white mb-2">보물 QR 코드 스캔</h1>
+                <p className="text-lg text-gray-400">{teamNumber}조 보물의 QR 코드를 스캔해주세요</p>
               </div>
 
               <div className="relative w-full aspect-square rounded-lg overflow-hidden mb-8 bg-black">
