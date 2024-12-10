@@ -19,7 +19,7 @@ function App() {
           <Route path="/" element={<MainPage />} />
             <Route path="/form" element={<TeamForm />} />
             <Route path="/qr-scan" element={<QRScanPage />} />
-          <Route path="/treasure/:treasureId" element={<TreasureRoute />} />
+            <Route path="/treasure/:treasureId" element={<TreasureRoute />} />
         </Routes>
       </Router>
   );
