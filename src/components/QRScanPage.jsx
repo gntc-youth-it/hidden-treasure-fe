@@ -13,6 +13,8 @@ const QRScanPage = () => {
   const teamNumber = location.state?.teamNumber;
   const [isScanning, setIsScanning] = useState(false);
   const [html5QrCode, setHtml5QrCode] = useState(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 500);
@@ -137,7 +139,6 @@ const QRScanPage = () => {
                 },
                 async (decodedText) => {
                   try {
-                    await qrCodeInstance.stop();
                     const response = await fetch('https://api.bhohwa.click/treasure/find', {
                       method: 'POST',
                       headers: {
@@ -154,12 +155,19 @@ const QRScanPage = () => {
                     }
 
                     const data = await response.json();
-                    // 성공 페이지로 이동
-                    navigate('/success', { state: { data } });
+                    setToastMessage('보물을 찾았습니다! 🎉');
+                    setShowToast(true);
+
+                    setTimeout(() => {
+                      setShowToast(false);
+                    }, 3000);
 
                   } catch (err) {
-                    setError('QR 코드 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
-                    if(qrCodeInstance) qrCodeInstance.start(rearCamera.id);
+                    setToastMessage('QR 코드 처리 중 오류가 발생했습니다.');
+                    setShowToast(true);
+                    setTimeout(() => {
+                      setShowToast(false);
+                    }, 3000);
                   }
                 },
                 () => {}
@@ -231,6 +239,15 @@ const QRScanPage = () => {
                   <div className="absolute inset-8 border-2 border-white/30" />
                 </div>
               </div>
+
+              {showToast && (
+                  <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
+                    <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg
+                      transition-opacity duration-300 opacity-90">
+                      {toastMessage}
+                    </div>
+                  </div>
+              )}
 
               {error && (
                   <div className="w-full p-4 bg-red-500/20 rounded-lg mb-4">
