@@ -15,6 +15,7 @@ const QRScanPage = () => {
   const [html5QrCode, setHtml5QrCode] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [lastRequestTime, setLastRequestTime] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 500);
@@ -79,7 +80,7 @@ const QRScanPage = () => {
     devices.forEach(device => {
       setDebugInfo(prev => prev + `\n - ${device.label} (${device.id})`);
     });
-
+d
     // 후면 카메라 찾기 시도
     const rearCamera = devices.find(camera => {
       const label = (camera.label || '').toLowerCase();
@@ -139,6 +140,11 @@ const QRScanPage = () => {
                 },
                 async (decodedText) => {
                   try {
+                    const now = Date.now();
+                    if (now - lastRequestTime < 5000) {  // 5000ms = 5초
+                      return; // 5초 이내의 요청은 무시
+                    }
+
                     const response = await fetch('https://api.bhohwa.click/treasure/find', {
                       method: 'POST',
                       headers: {
@@ -157,12 +163,14 @@ const QRScanPage = () => {
                     const data = await response.json();
                     setToastMessage('보물을 찾았습니다! 🎉');
                     setShowToast(true);
+                    setLastRequestTime(now);
 
                     setTimeout(() => {
                       setShowToast(false);
                     }, 3000);
 
                   } catch (err) {
+                    setLastRequestTime(Date.now());
                     setToastMessage('QR 코드 처리 중 오류가 발생했습니다.');
                     setShowToast(true);
                     setTimeout(() => {
