@@ -138,14 +138,14 @@ const QRScanPage = () => {
                 async (decodedText) => {
                   try {
                     await qrCodeInstance.stop();
-                    const response = await fetch('YOUR_API_ENDPOINT', {
+                    const response = await fetch('https://api.bhohwa.click/treasure/find', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
                       },
                       body: JSON.stringify({
                         teamNumber: teamNumber,
-                        uuid: decodedText
+                        treasureCode: decodedText  // API 요청 형식에 맞게 변경
                       })
                     });
 
@@ -154,7 +154,8 @@ const QRScanPage = () => {
                     }
 
                     const data = await response.json();
-                    navigate('/next-page', { state: { data } });
+                    // 성공 페이지로 이동
+                    navigate('/success', { state: { data } });
 
                   } catch (err) {
                     setError('QR 코드 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
