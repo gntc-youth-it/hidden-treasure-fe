@@ -10,6 +10,7 @@ import TreasureImage from "./components/TreasureImage";
 import MainPage from "./components/MainPage.jsx";
 import TeamForm from "./components/TeamForm.jsx";
 import QRScanPage from "./components/QRScanPage.jsx";
+import RankingTable from "./components/RankingTable.jsx";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/" element={<MainPage />} />
             <Route path="/form" element={<TeamForm />} />
             <Route path="/qr-scan" element={<QRScanPage />} />
+            <Route path="/rank" element={<RankingTable />} />
             <Route path="/treasure/:treasureId" element={<TreasureRoute />} />
         </Routes>
       </Router>
