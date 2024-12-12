@@ -99,7 +99,7 @@ const RankingTable = () => {
                                                 index === 1 ? 'bg-gray-400' :
                                                     'bg-orange-700'
                                         }`}
-                                        style={{ width: `${Math.min((team.treasureCount / 10) * 100, 100)}%` }}
+                                        style={{ width: `${Math.min((team.treasureCount / 10) * 20, 100)}%` }}
                                     />
                                 </div>
                             </motion.div>
@@ -114,7 +114,7 @@ const RankingTable = () => {
                             <th className="px-8 py-5 text-center text-lg">순위</th>
                             <th className="px-8 py-5 text-center text-lg">팀</th>
                             <th className="px-8 py-5 text-center text-lg">보물 개수</th>
-                            <th className="px-8 py-5 text-right text-lg">스코어</th>
+                            <th className="px-8 py-5 text-right text-lg">진행률</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -156,12 +156,9 @@ const RankingTable = () => {
                                                             team.treasureCount >= 5 ? 'bg-yellow-500' :
                                                                 'bg-red-500'
                                                     }`}
-                                                    style={{ width: `${Math.min((team.treasureCount / 10) * 100, 100)}%` }}
+                                                    style={{ width: `${Math.min((team.treasureCount / 10) * 50, 100)}%` }}
                                                 />
                                             </div>
-                                            <span className="text-lg w-16 text-right">
-                                                    {Math.min(Math.round((team.treasureCount / 10) * 100), 100)}점
-                                                </span>
                                         </div>
                                     </motion.td>
                                 </motion.tr>
