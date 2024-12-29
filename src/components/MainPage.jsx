@@ -54,7 +54,7 @@ const MainPage = () => {
                     <div className={`text-center mb-16 transition-opacity duration-1000 ${
                         isVisible ? 'opacity-100' : 'opacity-0'
                     }`}>
-                        <h1 className="text-4xl font-bold text-white mb-2">천국에 감추인 보화</h1>
+                        <h1 className="text-4xl font-bold text-white mb-2">밭에 감추인 보화</h1>
                         <p className="text-lg text-gray-400">보물을 찾으러 떠나볼까요?</p>
                     </div>
 
